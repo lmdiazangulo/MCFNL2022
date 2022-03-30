@@ -1,15 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Mar 22 13:46:30 2022
-
-@author: benjapases (Benjamín Pascual Estrugo)
-"""
-
-
 import numpy as np
 
-#Generamos una clase para nuestro panel
 class Panel:
     """
     Define un panel según su permitividad relativa, su conductancia y grosor
@@ -44,20 +34,3 @@ class Panel:
         eta0 = 376.73031346177
         T = 2*eta0/(phi[0][0]*eta0 + phi[0][1] + phi[1][0]*eta0**2 + phi[1][1]*eta0)
         return T
-   
-    
-
-epsilonr = 5
-sigma = 10
-d = 10e-03
-w = 2*np.pi*1000#entre 1khz y 1GHz
-
-panel = Panel(epsilonr,sigma,d,w)
-print("Coeficiente de reflexión:", panel.Reflexion())
-print("Coeficiente de transmisión:",panel.Transmision())
-
-
-        
-        
-
-    
