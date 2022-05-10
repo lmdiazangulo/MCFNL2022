@@ -17,8 +17,8 @@ pi = math.pi
 L         = 10.0
 dx        = 0.1
 dy        = 0.1
-finalTime = L/c0*5
-cfl       = .8
+finalTime = 0.5*10**(-7)
+cfl       = .99
 
 gridEX = np.linspace(0,      L,        num=int(L/dx + 1), endpoint=True)
 gridEY = np.linspace(0,      L,        num=int(L/dy + 1), endpoint=True)
@@ -26,27 +26,35 @@ gridHX = np.linspace(dx/2.0, L-dx/2.0, num=int(L/dx),   endpoint=True)
 gridHY = np.linspace(dy/2.0, L-dy/2.0, num=int(L/dy),   endpoint=True)
 
 # ---- Materials --------------------------------------------------------------
-# Condiciones dielectricas
 eps = np.zeros((gridEX.size, gridEY.size), dtype = complex)
+
+epsr = np.zeros((gridEX.size, gridEY.size))
+sigma = np.zeros((gridEX.size, gridEY.size))
 
 for i1 in range(10,91):
     for j1 in range(10,91):
-        eps[i1][j1] = complex(1,0)
+        epsr[i1][j1] = 1.0
+        sigma[i1][j1] = 0.0
         
 for i2 in range(0,10):
-    eps[i2][:] = complex(2,-5)
+    epsr[i2][:] = 2.0
+    sigma[i2][:] = 5.0
     
 for ix in range(gridEX.size):  
     for j2 in range(0,10):
-        eps[ix][j2] = complex(2,-5)
+        epsr[ix][j2] = 2.0
+        sigma[ix][j2] = 5.0
         
 for i3 in range(91,gridEX.size): 
     for jy in range(gridEX.size):
-        eps[jy][i3] = complex(2,-5)
+        epsr[jy][i3] = 2.0
+        sigma[jy][i3] = 5.0
     
 for j3 in range(91,gridEY.size):
-    eps[:][j3] = complex(2,-5)
+    epsr[:][j3] = 2.0
+    sigma[:][j3] = 5.0
 
+eps[:][:] = epsr[:][:] + complex(0,-1)*sigma[:][:]
 
 # ---- Sources ----------------------------------------------------------------
 # Initial field H
@@ -104,8 +112,8 @@ cEy = np.zeros((gridEX.size, gridEY.size), dtype = complex)
 
 for i in range(gridEX.size):
     for j in range(gridEY.size):
-        cEx[i][j] = dt / (eps0*eps[i][j]) / dx
-        cEy[i][j] = dt / (eps0*eps[i][j]) / dy
+        cEx[i][j] = dt / (eps0*(eps[i][j] + sigma[i][j]*dt/2)) / dx
+        cEy[i][j] = dt / (eps0*(eps[i][j] + sigma[i][j]*dt/2)) / dy
 
 cHx = dt / mu0 / dx
 cHy = dt / mu0 / dy
@@ -119,34 +127,33 @@ for n in range(numberOfTimeSteps):
     # --- Updates E field ---
     for i in range(1, gridEX.size-1):
         for j in range(1, gridEY.size-1):
-            exNew[i][j] = exOld[i][j] + cEy[i][j] * (hzOld[i][j] - hzOld[i  ][j-1])
-            eyNew[i][j] = eyOld[i][j] - cEx[i][j] * (hzOld[i][j] - hzOld[i-1][j  ])
+            exNew[i][j] = ((eps[i][j] - sigma[i][j]*dt/2)/(eps[i][j] + sigma[i][j]*dt/2))*exOld[i][j] \
+                + cEy[i][j] * (hzOld[i][j] - hzOld[i  ][j-1])
+            eyNew[i][j] = ((eps[i][j] - sigma[i][j]*dt/2)/(eps[i][j] + sigma[i][j]*dt/2))*eyOld[i][j] \
+                - cEx[i][j] * (hzOld[i][j] - hzOld[i-1][j  ])
      
-    # E field boundary conditions (Continuity Condition)
-    
-    
     # PEC
     exNew[ :][ 0] = 0.0
     exNew[ :][-1] = 0.0
     eyNew[ 0][ :] = 0.0
     eyNew[-1][ :] = 0.0 
+    
 
     # --- Updates H field ---
     for i in range(gridHX.size):
         for j in range(gridHX.size):
             hzNew[i][j] = hzOld[i][j] - cHx * (eyNew[i+1][j  ] - eyNew[i][j]) +\
                                         cHy * (exNew[i  ][j+1] - exNew[i][j])
-    # H field boundary conditions (Continuity Condition)
     
-       
     # PMC
     hzNew[ :][ 0] = 0.0
     hzNew[ :][-1] = 0.0
     for i in range(gridHX.size):
         hzNew[ i][0] = 0.0
         hzNew[ i][-1] = 0.0
-
-
+    
+        
+   
     # --- Updates output requests ---
     probeH[:,:,n] = hzNew[:,:]
     probeTime[n] = t
@@ -171,12 +178,10 @@ ax = fig.add_subplot(1, 1, 1)
 #ax = plt.axes(xlim=(gridE[0], gridE[-1]), ylim=(-1.1, 1.1))
 ax.set_xlabel('X coordinate ')
 ax.set_ylabel('Y coordinate ')
-line = plt.imshow(probeH[:,:,0], animated=True, vmin=-0.5, vmax=0.5, cmap ="RdBu")
+line = plt.imshow(probeH[:,:,0], animated=True, vmin=-0.15, vmax=0.15, cmap ="RdBu")
 timeText = ax.text(0.02, 0.95, '', transform=ax.transAxes)
 rectangle1 = plt.Rectangle((9 ,8), 81, 82, edgecolor="black", fill=False)
-rectangle2 = plt.Rectangle((0 ,0), 99, 100, edgecolor="black", fill=False)
 plt.gca().add_patch(rectangle1)
-plt.gca().add_patch(rectangle2)
 
 def init():
     line.set_array(probeH[:,:,0])
